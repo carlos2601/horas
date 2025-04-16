@@ -111,7 +111,7 @@
             <label for="fechaIngreso">Fecha y Hora de Ingreso:</label>
             <input type="datetime-local" id="fechaIngreso">
         </div>
-         <br>
+        <br>
         <div class="inline-fields">
             <label for="fechaSalida">Fecha y Hora de Salida:</label>
             <input type="datetime-local" id="fechaSalida">
@@ -129,38 +129,24 @@
             <th>Horas Trabajadas</th>
             <th>Valor</th>
         </tr>
-        <tr>
-            <td>Ordinaria</td>
-            <td id="horasOrdinarias">0</td>
-            <td id="valorOrdinario">0</td>
-        </tr>
-        <tr>
-            <td>Nocturna</td>
-            <td id="horasNocturnas">0</td>
-            <td id="valorNocturno">0</td>
-        </tr>
-        <tr>
-            <td>Horas Extras Diurnas</td>
-            <td id="extrasDiurnas">0</td>
-            <td id="valorExtrasDiurnas">0</td>
-        </tr>
-        <tr>
-            <td>Horas Extras Nocturnas</td>
-            <td id="extrasNocturnas">0</td>
-            <td id="valorExtrasNocturnas">0</td>
-        </tr>
-        <tr>
-            <td>Festivas</td>
-            <td id="horasFestivas">0</td>
-            <td id="valorFestivo">0</td>
-        </tr>
-        <tr>
-            <td class="total">Total</td>
-            <td class="total" colspan="2" id="detalleTotal">0</td>
-        </tr>
+        <tr><td>Ordinaria 0%</td><td id="horasOrdinarias">0</td><td id="valorOrdinario">0</td></tr>
+        <tr><td>Nocturna 35%</td><td id="horasNocturnas">0</td><td id="valorNocturno">0</td></tr>
+        <tr><td>Horas Extras Diurnas 25%</td><td id="extrasDiurnas">0</td><td id="valorExtrasDiurnas">0</td></tr>
+        <tr><td>Horas Extras Nocturnas 75%</td><td id="extrasNocturnas">0</td><td id="valorExtrasNocturnas">0</td></tr>
+        <tr><td>Festiva Diurna 100%</td><td id="festivaDiurna">0</td><td id="valorFestivaDiurna">0</td></tr>
+        <tr><td>Festiva Nocturna 110%</td><td id="festivaNocturna">0</td><td id="valorFestivaNocturna">0</td></tr>
+        <tr><td>Hora Extra Festiva 150%</td><td id="horaExtraFestiva">0</td><td id="valorExtraFestiva">0</td></tr>
+        <tr><td class="total">Total</td><td class="total" colspan="2" id="detalleTotal">0</td></tr>
     </table>
 
     <script>
+        const festivos2025 = [
+            '2025-01-01', '2025-01-06', '2025-03-24', '2025-04-17', '2025-04-18',
+            '2025-05-01', '2025-06-02', '2025-06-23', '2025-06-30', '2025-07-20',
+            '2025-08-07', '2025-08-18', '2025-10-13', '2025-11-03', '2025-11-17',
+            '2025-12-08', '2025-12-25'
+        ];
+
         function calcularSalario() {
             const ingreso = new Date(document.getElementById('fechaIngreso').value);
             const salida = new Date(document.getElementById('fechaSalida').value);
@@ -171,33 +157,110 @@
                 return;
             }
 
-            const horasTrabajo = (salida - ingreso) / 3600000;
-            const jornadaOrdinaria = Math.min(horasTrabajo, 8);
-            const horasExtras = Math.max(0, horasTrabajo - 8);
-            let horasDiurnas = 0, horasNocturnas = 0;
+            let horasOrdinarias = 0, horasNocturnas = 0;
+            let extrasDiurnas = 0, extrasNocturnas = 0;
+            let festivaDiurna = 0, festivaNocturna = 0, extraFestiva = 0;
 
-            let horaActual = ingreso.getHours();
-            for (let i = 0; i < horasTrabajo; i++) {
-                horaActual = (horaActual + 1) % 24;
-                if (horaActual >= 6 && horaActual < 21) {
-                    horasDiurnas++;
-                } else {
+            const horaValor = salarioBase / 240;
+            const recargos = {
+                nocturna: 0.35,
+                extraDiurna: 0.25,
+                extraNocturna: 0.75,
+                festivaDiurna: 1.00,
+                festivaNocturna: 1.10,
+                extraFestiva: 1.50,
+            };
+
+            let horaActual = new Date(ingreso);
+            let horasAcumuladas = 0;
+
+            while (horaActual < salida) {
+                const siguiente = new Date(horaActual);
+                siguiente.setHours(siguiente.getHours() + 1);
+                const hora = horaActual.getHours();
+
+                const fechaStr = horaActual.getFullYear() + '-' +
+                    String(horaActual.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(horaActual.getDate()).padStart(2, '0');
+
+                const esFestivo = festivos2025.includes(fechaStr);
+                const esNocturna = (hora >= 21 || hora < 6);
+                const esDiurna = !esNocturna;
+                const esExtra = horasAcumuladas >= 8;
+
+                if (esFestivo && esExtra) {
+                    extraFestiva++;
+                } else if (esFestivo && esNocturna) {
+                    festivaNocturna++;
+                } else if (esFestivo && esDiurna) {
+                    festivaDiurna++;
+                } else if (esExtra && esNocturna) {
+                    extrasNocturnas++;
+                } else if (esExtra && esDiurna) {
+                    extrasDiurnas++;
+                } else if (esNocturna) {
                     horasNocturnas++;
+                } else {
+                    horasOrdinarias++;
                 }
+
+                horasAcumuladas++;
+                horaActual = siguiente;
             }
 
-            document.getElementById('horasOrdinarias').textContent = jornadaOrdinaria.toFixed(2);
-            document.getElementById('horasNocturnas').textContent = horasNocturnas.toFixed(2);
-            document.getElementById('extrasDiurnas').textContent = horasDiurnas.toFixed(2);
+            const calcularValor = (horas, recargo) =>
+                Math.round(horas * horaValor * (1 + recargo));
+
+            const format = (valor) =>
+                valor.toLocaleString('es-CO');
+
+            document.getElementById('horasOrdinarias').textContent = horasOrdinarias;
+            document.getElementById('valorOrdinario').textContent = format(Math.round(horasOrdinarias * horaValor));
+
+            document.getElementById('horasNocturnas').textContent = horasNocturnas;
+            document.getElementById('valorNocturno').textContent = format(calcularValor(horasNocturnas, recargos.nocturna));
+
+            document.getElementById('extrasDiurnas').textContent = extrasDiurnas;
+            document.getElementById('valorExtrasDiurnas').textContent = format(calcularValor(extrasDiurnas, recargos.extraDiurna));
+
+            document.getElementById('extrasNocturnas').textContent = extrasNocturnas;
+            document.getElementById('valorExtrasNocturnas').textContent = format(calcularValor(extrasNocturnas, recargos.extraNocturna));
+
+            document.getElementById('festivaDiurna').textContent = festivaDiurna;
+            document.getElementById('valorFestivaDiurna').textContent = format(calcularValor(festivaDiurna, recargos.festivaDiurna));
+
+            document.getElementById('festivaNocturna').textContent = festivaNocturna;
+            document.getElementById('valorFestivaNocturna').textContent = format(calcularValor(festivaNocturna, recargos.festivaNocturna));
+
+            document.getElementById('horaExtraFestiva').textContent = extraFestiva;
+            document.getElementById('valorExtraFestiva').textContent = format(calcularValor(extraFestiva, recargos.extraFestiva));
+
+            const total =
+                Math.round(horasOrdinarias * horaValor) +
+                calcularValor(horasNocturnas, recargos.nocturna) +
+                calcularValor(extrasDiurnas, recargos.extraDiurna) +
+                calcularValor(extrasNocturnas, recargos.extraNocturna) +
+                calcularValor(festivaDiurna, recargos.festivaDiurna) +
+                calcularValor(festivaNocturna, recargos.festivaNocturna) +
+                calcularValor(extraFestiva, recargos.extraFestiva);
+
+            document.getElementById('detalleTotal').textContent = format(total);
         }
 
         function resetTable() {
             document.getElementById('fechaIngreso').value = '';
             document.getElementById('fechaSalida').value = '';
             document.getElementById('salarioBase').value = '';
-            document.getElementById('horasOrdinarias').textContent = '0';
-            document.getElementById('horasNocturnas').textContent = '0';
-            document.getElementById('extrasDiurnas').textContent = '0';
+            [
+                'horasOrdinarias', 'valorOrdinario',
+                'horasNocturnas', 'valorNocturno',
+                'extrasDiurnas', 'valorExtrasDiurnas',
+                'extrasNocturnas', 'valorExtrasNocturnas',
+                'festivaDiurna', 'valorFestivaDiurna',
+                'festivaNocturna', 'valorFestivaNocturna',
+                'horaExtraFestiva', 'valorExtraFestiva',
+                'detalleTotal'
+            ].forEach(id => document.getElementById(id).textContent = '0');
         }
     </script>
 </body>
